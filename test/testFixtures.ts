@@ -42,7 +42,7 @@ export default function textFixtures({
   })
   for (const fixturePath in fixtures) {
     const fixture = fixtures[fixturePath]
-    const { input, expected } = fixture
+    const { input, expected, expectedError } = fixture
     const file = path.resolve(
       __dirname,
       fixture.file
@@ -78,23 +78,30 @@ export default function textFixtures({
       const report = []
       const parser = fixture.parser || defaultParser
       const j = parser ? jscodeshift.withParser(parser) : jscodeshift
-      const result = transform(
-        { path: file, source },
-        {
-          j,
-          jscodeshift: j,
-          stats: (name: string, quantity = 1): void => {
-            const total = stats[name]
-            stats[name] = total != null ? total + quantity : quantity
+      const doTransform = (): string | null | void | undefined =>
+        transform(
+          { path: file, source },
+          {
+            j,
+            jscodeshift: j,
+            stats: (name: string, quantity = 1): void => {
+              const total = stats[name]
+              stats[name] = total != null ? total + quantity : quantity
+            },
+            report: (msg: string) => report.push(msg),
           },
-          report: (msg: string) => report.push(msg),
-        },
-        options
-      )
-      if (!result) expect(result).to.equal(fixture.expected)
-      else expect(normalize(result)).to.equal(normalize(expected))
-      if (fixture.stats) expect(stats).to.deep.equal(fixture.stats)
-      if (fixture.report) expect(report).to.deep.equal(fixture.report)
+          options
+        )
+
+      if (expectedError) {
+        expect(doTransform).to.throw(expectedError)
+      } else {
+        const result = doTransform()
+        if (!result) expect(result).to.equal(fixture.expected)
+        else expect(normalize(result)).to.equal(normalize(expected))
+        if (fixture.stats) expect(stats).to.deep.equal(fixture.stats)
+        if (fixture.report) expect(report).to.deep.equal(fixture.report)
+      }
     })
   }
 }

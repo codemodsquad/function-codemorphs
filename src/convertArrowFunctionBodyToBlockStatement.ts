@@ -1,4 +1,11 @@
-import { ASTPath, Node, FileInfo, API, Options } from 'jscodeshift'
+import {
+  ASTPath,
+  Node,
+  FileInfo,
+  API,
+  Options,
+  ArrowFunctionExpression,
+} from 'jscodeshift'
 import pathsInRange from 'jscodeshift-paths-in-range'
 
 type Filter = (
@@ -7,14 +14,13 @@ type Filter = (
   paths: Array<ASTPath<Node>>
 ) => boolean
 
-module.exports = function example(
+module.exports = function convertArrowFunctionBodyToBlockStatement(
   fileInfo: FileInfo,
   api: API,
   options: Options
 ): string | null | undefined | void {
   const j = api.jscodeshift
 
-  const { statement } = j.template
   const root = j(fileInfo.source)
 
   let filter: Filter
@@ -27,9 +33,15 @@ module.exports = function example(
   } else {
     filter = (): boolean => true
   }
-  return root
-    .find(j.FunctionDeclaration)
+
+  root
+    .find(j.ArrowFunctionExpression)
     .filter(filter)
-    .insertBefore(statement`console.log('hello world')`)
-    .toSource()
+    .forEach(({ node }: ASTPath<ArrowFunctionExpression>): void => {
+      const { body } = node
+      if (body.type === 'BlockStatement') return
+      node.body = j.blockStatement([j.returnStatement(body)])
+    })
+
+  return root.toSource()
 }
