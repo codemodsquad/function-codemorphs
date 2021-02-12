@@ -6,7 +6,7 @@ import {
   Options,
   ArrowFunctionExpression,
 } from 'jscodeshift'
-import pathsInRange from 'jscodeshift-paths-in-range'
+import selectedArrowFunctions from './util/selectedArrowFunctions'
 
 type Filter = (
   path: ASTPath<Node>,
@@ -23,21 +23,8 @@ module.exports = function convertArrowFunctionBodyToExpression(
 
   const root = j(fileInfo.source)
 
-  let filter: Filter
-  if (options.selectionStart) {
-    const selectionStart = parseInt(options.selectionStart)
-    const selectionEnd = options.selectionEnd
-      ? parseInt(options.selectionEnd)
-      : selectionStart
-    filter = pathsInRange(selectionStart, selectionEnd)
-  } else {
-    filter = (): boolean => true
-  }
-
-  root
-    .find(j.ArrowFunctionExpression)
-    .filter(filter)
-    .forEach(({ node }: ASTPath<ArrowFunctionExpression>): void => {
+  selectedArrowFunctions(root, options).forEach(
+    ({ node }: ASTPath<ArrowFunctionExpression>): void => {
       const { body } = node
       if (body.type !== 'BlockStatement') return
       if (body.body.length > 1)
@@ -47,7 +34,8 @@ module.exports = function convertArrowFunctionBodyToExpression(
       /* eslint-disable @typescript-eslint/no-explicit-any */
       node.body = body.body[0].argument as any
       /* eslint-enable @typescript-eslint/no-explicit-any */
-    })
+    }
+  )
 
   return root.toSource()
 }
