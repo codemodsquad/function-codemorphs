@@ -39,5 +39,15 @@ export default function selectedArrowFunctions(
         paths.push(init)
     })
 
+  root
+    .find(j.VariableDeclaration)
+    .filter(filter)
+    .forEach((path: ASTPath<j.VariableDeclaration>) => {
+      if (path.node.declarations.length !== 1) return
+      const init = path.get('declarations', 0, 'init')
+      if (init.node && init.node.type === 'ArrowFunctionExpression')
+        paths.push(init)
+    })
+
   return j(paths)
 }
